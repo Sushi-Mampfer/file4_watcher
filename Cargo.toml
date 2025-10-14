@@ -1,0 +1,16 @@
+[package]
+name = "file4_watcher"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.42"
+reqwest = "0.12.24"
+roxmltree = "0.21.1"
+tokio = { version = "1.47.1", features = [
+    "macros",
+    "rt-multi-thread",
+    "sync",
+    "time",
+] }
+url = "2.5.7"
