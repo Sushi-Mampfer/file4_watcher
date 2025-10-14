@@ -1,5 +1,6 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
-use roxmltree::Document;
+use chrono::{DateTime, NaiveDateTime};
+use reqwest::{Client, Method};
+use roxmltree::{Document, ParsingOptions};
 use std::{sync::Arc, time::Duration};
 use tokio::{
     sync::{Mutex, oneshot, watch},
@@ -39,13 +40,35 @@ impl Watcher {
             let query = tokio::spawn(async move {
                 loop {
                     interval.tick().await;
-                    let Ok(res) = reqwest::get(&url).await else {
+                    let client = Client::new();
+                    let req = client
+                        .request(Method::GET, &url)
+                        .header("User-Agent", "some@email.com");
+                    let Ok(req) = req.build() else {
+                        continue;
+                    };
+                    let Ok(res) = client.execute(req).await else {
                         continue;
                     };
                     let Ok(data) = res.text().await else {
                         continue;
                     };
-                    let Ok(document) = Document::parse(&data) else {
+                    let opt = ParsingOptions {
+                        ..Default::default()
+                    };
+                    let Ok(document) = Document::parse_with_options(&data, opt) else {
+                        continue;
+                    };
+                    let Some(updated) = document
+                        .descendants()
+                        .find(|n| n.has_tag_name(("http://www.w3.org/2005/Atom", "updated")))
+                    else {
+                        continue;
+                    };
+                    let Some(updated) = updated.text() else {
+                        continue;
+                    };
+                    let Ok(updated) = DateTime::parse_from_rfc3339(updated) else {
                         continue;
                     };
                     let entries = document
@@ -61,7 +84,7 @@ impl Watcher {
                                 let Some(t) = t.text() else {
                                     continue;
                                 };
-                                if t.starts_with("4/A") {
+                                if !t.starts_with("4 ") {
                                     continue;
                                 }
                             }
@@ -95,9 +118,9 @@ impl Watcher {
                             continue;
                         };
                         url.path_segments_mut().expect("no way lol").pop();
-                        out.push(link.to_string());
+                        out.push(url.to_string());
                     }
-                    *last_time.lock().await = Utc::now().naive_local();
+                    *last_time.lock().await = updated.naive_local();
                     let _ = change_tx.send(Some(out));
                 }
             });
