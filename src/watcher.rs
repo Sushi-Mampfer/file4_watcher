@@ -59,8 +59,17 @@ impl Watcher {
                     let Ok(document) = Document::parse_with_options(&data, opt) else {
                         continue;
                     };
-                    let Some(updated) = document
+                    let entries: Vec<_> = document
                         .descendants()
+                        .filter(|n| n.has_tag_name(("http://www.w3.org/2005/Atom", "entry")))
+                        .collect();
+                    let mut out = Vec::new();
+                    let mut peekable = entries.iter().peekable();
+                    let Some(first) = peekable.peek() else {
+                        continue;
+                    };
+                    let Some(updated) = first
+                        .children()
                         .find(|n| n.has_tag_name(("http://www.w3.org/2005/Atom", "updated")))
                     else {
                         continue;
@@ -71,10 +80,6 @@ impl Watcher {
                     let Ok(updated) = DateTime::parse_from_rfc3339(updated) else {
                         continue;
                     };
-                    let entries = document
-                        .descendants()
-                        .filter(|n| n.has_tag_name(("http://www.w3.org/2005/Atom", "entry")));
-                    let mut out = Vec::new();
                     for i in entries {
                         match i
                             .children()
@@ -102,7 +107,7 @@ impl Watcher {
                         let Ok(time) = DateTime::parse_from_rfc3339(time) else {
                             continue;
                         };
-                        if time.naive_local() < *last_time.lock().await {
+                        if time.naive_local() <= *last_time.lock().await {
                             continue;
                         }
                         let Some(link) = i
