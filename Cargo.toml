@@ -13,4 +13,3 @@ tokio = { version = "1.47.1", features = [
     "sync",
     "time",
 ] }
-url = "2.5.7"

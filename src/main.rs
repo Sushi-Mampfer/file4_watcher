@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use crate::watcher::Watcher;
 
+mod file4;
 pub mod watcher;
 
 #[tokio::main]

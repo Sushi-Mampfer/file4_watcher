@@ -6,7 +6,6 @@ use tokio::{
     sync::{Mutex, oneshot, watch},
     time::interval,
 };
-use url::Url;
 
 pub struct Watcher {
     url: String,
@@ -119,11 +118,7 @@ impl Watcher {
                         let Some(link) = link.attribute("href") else {
                             continue;
                         };
-                        let Ok(mut url) = Url::parse(link) else {
-                            continue;
-                        };
-                        url.path_segments_mut().expect("no way lol").pop();
-                        out.push(url.to_string());
+                        out.push(link.replace("-index.htm", ".txt"));
                     }
                     *last_time.lock().await = updated.naive_local();
                     let _ = change_tx.send(Some(out));
