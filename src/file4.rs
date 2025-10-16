@@ -1,3 +1,5 @@
+use roxmltree::Document;
+
 pub struct File4 {
     id: String,
     reporter: Reporter,
@@ -27,13 +29,22 @@ pub enum Relation {
 pub struct NonDerivative {
     title: String,
     date: Option<String>,
-    tx_code: Option<Vec<TransactionCode>>,
+    tx_codes: Option<Vec<TransactionCode>>,
     tx_data: Option<TransactionData>,
     owned: i32,
     ownership: Ownership,
 }
 
-pub struct Derivative {}
+pub struct Derivative {
+    title: String,
+    date: Option<String>,
+    tx_codes: Option<Vec<TransactionCode>>,
+    count: Option<DerivativeNumber>,
+    underlying: Option<Underlying>,
+    price: Option<f32>,
+    owned: i32,
+    ownership: Ownership,
+}
 
 pub enum TransactionCode {
     // General Transaction Codes
@@ -72,4 +83,27 @@ pub struct TransactionData {
 pub enum Ownership {
     Direct,
     Indirect(String),
+}
+
+pub enum DerivativeNumber {
+    Acquired(i32),
+    Disposed(i32),
+}
+
+pub struct Underlying {
+    title: String,
+    price: f32,
+}
+
+impl File4 {
+    pub fn new(id: String, data: String) -> anyhow::Result<Self> {
+        Document::parse(&data)?;
+        Ok(Self {
+            id,
+            reporter: todo!(),
+            issuer: todo!(),
+            non_derivative: todo!(),
+            derivative: todo!(),
+        })
+    }
 }
