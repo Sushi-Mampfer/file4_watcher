@@ -1,22 +1,25 @@
+use anyhow::anyhow;
+use regex::Regex;
 use roxmltree::Document;
 
 pub struct File4 {
-    id: String,
-    reporter: Reporter,
-    issuer: Issuer,
-    non_derivative: Vec<NonDerivative>,
-    derivative: Vec<Derivative>,
+    pub id: String,
+    pub file_name: String,
+    pub reporter: Reporter,
+    pub issuer: Issuer,
+    pub non_derivative: Vec<NonDerivative>,
+    pub derivative: Vec<Derivative>,
 }
 
 pub struct Reporter {
-    name: String,
-    cik: String,
-    relation: Relation,
+    pub name: String,
+    pub cik: String,
+    pub relation: Relation,
 }
 pub struct Issuer {
-    name: String,
-    cik: String,
-    symbol: String,
+    pub name: String,
+    pub cik: String,
+    pub symbol: String,
 }
 
 pub enum Relation {
@@ -27,23 +30,23 @@ pub enum Relation {
 }
 
 pub struct NonDerivative {
-    title: String,
-    date: Option<String>,
-    tx_codes: Option<Vec<TransactionCode>>,
-    tx_data: Option<TransactionData>,
-    owned: i32,
-    ownership: Ownership,
+    pub title: String,
+    pub date: Option<String>,
+    pub tx_codes: Option<Vec<TransactionCode>>,
+    pub tx_data: Option<TransactionData>,
+    pub owned: i32,
+    pub ownership: Ownership,
 }
 
 pub struct Derivative {
-    title: String,
-    date: Option<String>,
-    tx_codes: Option<Vec<TransactionCode>>,
-    count: Option<DerivativeNumber>,
-    underlying: Option<Underlying>,
-    price: Option<f32>,
-    owned: i32,
-    ownership: Ownership,
+    pub title: String,
+    pub date: Option<String>,
+    pub tx_codes: Option<Vec<TransactionCode>>,
+    pub count: Option<DerivativeNumber>,
+    pub underlying: Option<Underlying>,
+    pub price: Option<f32>,
+    pub owned: i32,
+    pub ownership: Ownership,
 }
 
 pub enum TransactionCode {
@@ -75,9 +78,9 @@ pub enum TransactionCode {
 }
 
 pub struct TransactionData {
-    amount: i32,
-    acqired: bool,
-    price: f32,
+    pub amount: i32,
+    pub acqired: bool,
+    pub price: f32,
 }
 
 pub enum Ownership {
@@ -91,17 +94,75 @@ pub enum DerivativeNumber {
 }
 
 pub struct Underlying {
-    title: String,
-    price: f32,
+    pub title: String,
+    pub price: f32,
 }
 
 impl File4 {
-    pub fn new(id: String, data: String) -> anyhow::Result<Self> {
-        Document::parse(&data)?;
+    pub fn new(data: String) -> anyhow::Result<Self> {
+        let re = Regex::new(
+            r"(?s)ACCESSION NUMBER:\s+([a-zA-Z0-9-]*).*?<FILENAME>([a-zA-Z0-9-]*\.xml).*?<XML>\n(.*?)\n<\/XML>",
+        )?;
+        let caps = re.captures(&data).ok_or(anyhow!("No caps found"))?;
+        let id = caps
+            .get(0)
+            .ok_or(anyhow!("No accession number found"))?
+            .as_str()
+            .to_string();
+
+        let file_name = caps
+            .get(1)
+            .ok_or(anyhow!("No file name found"))?
+            .as_str()
+            .to_string();
+
+        let xml = caps.get(2).ok_or(anyhow!("No xml found"))?.as_str();
+
+        let doc = Document::parse(xml)?;
+
+        let mut reporter = doc
+            .descendants()
+            .find(|n| n.has_tag_name("reportingOwner"))
+            .ok_or(anyhow!("No reporter found"))?
+            .children();
+
+        let mut reporter_id = reporter
+            .find(|n| n.has_tag_name("reportingOwnerId"))
+            .ok_or(anyhow!("No reporter id"))?
+            .children();
+
+        let mut issuer = doc
+            .descendants()
+            .find(|n| n.has_tag_name("issuer"))
+            .ok_or(anyhow!("No issuer found"))?
+            .children();
+
+        let issuer = Issuer {
+            name: issuer
+                .find(|n| n.has_tag_name("issuerName"))
+                .ok_or(anyhow!("No issuer name found"))?
+                .text()
+                .ok_or(anyhow!("No issuer name text found"))?
+                .to_owned(),
+            cik: issuer
+                .find(|n| n.has_tag_name("issuerCik"))
+                .ok_or(anyhow!("No issuer cik found"))?
+                .text()
+                .ok_or(anyhow!("No issuer cik text found"))?
+                .to_owned(),
+            symbol: issuer
+                .find(|n| n.has_tag_name("issuerTradingSymbol"))
+                .ok_or(anyhow!("No issuer symbol found"))?
+                .text()
+                .ok_or(anyhow!("No issuer symbol text found"))?
+                .to_owned(),
+        };
+
         Ok(Self {
             id,
+            file_name,
             reporter: todo!(),
-            issuer: todo!(),
+            issuer,
             non_derivative: todo!(),
             derivative: todo!(),
         })

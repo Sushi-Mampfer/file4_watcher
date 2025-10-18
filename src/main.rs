@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use crate::watcher::Watcher;
+use reqwest::{Client, Method};
+
+use crate::{file4::File4, watcher::Watcher};
 
 mod file4;
 pub mod watcher;
@@ -14,9 +16,21 @@ async fn main() {
     loop {
         if let Ok(Some(res)) = watcher.wait().await {
             for i in res {
-                println!("{}", i);
+                let client = Client::new();
+                let req = client
+                    .request(Method::GET, &i)
+                    .header("User-Agent", "some@email.com");
+                let Ok(req) = req.build() else {
+                    continue;
+                };
+                let Ok(res) = client.execute(req).await else {
+                    continue;
+                };
+                let Ok(content) = res.text().await else {
+                    continue;
+                };
+                File4::new(content);
             }
-            println!()
         }
     }
 }
