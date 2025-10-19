@@ -1,6 +1,8 @@
 use std::time::Duration;
 
 use reqwest::{Client, Method};
+use sqlx::{query, SqlitePool};
+use tokio::time::sleep;
 
 use crate::{file4::File4, watcher::Watcher};
 
@@ -9,6 +11,8 @@ pub mod watcher;
 
 #[tokio::main]
 async fn main() {
+    let pool = SqlitePool::connect("sqlite://db.sqlite").await.unwrap();
+    query("CREATE TABLE IF NOT EXISTS file4s (id )")
     let mut watcher = Watcher::new(
         "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=4&company=&dateb=&owner=include&start=0&count=100&output=atom".to_string(),
         Duration::from_secs(30),
@@ -16,6 +20,7 @@ async fn main() {
     loop {
         if let Ok(Some(res)) = watcher.wait().await {
             for i in res {
+                println!("{}", i);
                 let client = Client::new();
                 let req = client
                     .request(Method::GET, &i)
@@ -29,7 +34,8 @@ async fn main() {
                 let Ok(content) = res.text().await else {
                     continue;
                 };
-                File4::new(content);
+                File4::new(content).unwrap();
+                sleep(Duration::from_millis(250)).await;
             }
         }
     }
