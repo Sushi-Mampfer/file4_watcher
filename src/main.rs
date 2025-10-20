@@ -42,6 +42,7 @@ async fn main() {
 
     loop {
         if let Ok(Some(res)) = watcher.wait().await {
+            println!("Received {}  new file4s.", res.len());
             for i in res {
                 sleep(Duration::from_millis(250)).await;
                 let client = Client::new();
@@ -63,7 +64,7 @@ async fn main() {
                     .bind(to_string(&file4).unwrap())
                     .execute(&pool)
                     .await
-                    .is_err()
+                    .is_ok()
                 {
                     continue;
                 };
@@ -72,9 +73,9 @@ async fn main() {
                         continue;
                     };
                     let percentage = if data.acqired {
-                        data.amount / (i.owned - data.amount / 100.0)
+                        data.amount / ((i.owned - data.amount) / 100.0)
                     } else {
-                        data.amount / (i.owned + data.amount / 100.0)
+                        data.amount / ((i.owned + data.amount) / 100.0)
                     };
                     if percentage >= PERCENTAGE {
                         let data = json!({
