@@ -64,7 +64,7 @@ async fn main() {
                     .bind(to_string(&file4).unwrap())
                     .execute(&pool)
                     .await
-                    .is_ok()
+                    .is_err()
                 {
                     continue;
                 };
