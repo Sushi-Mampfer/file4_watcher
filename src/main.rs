@@ -42,7 +42,7 @@ async fn main() {
 
     loop {
         if let Ok(Some(res)) = watcher.wait().await {
-            println!("Received {}  new file4s.", res.len());
+            println!("Received {} new file4s.", res.len());
             for i in res {
                 sleep(Duration::from_millis(250)).await;
                 let client = Client::new();
