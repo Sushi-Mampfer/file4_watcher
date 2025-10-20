@@ -1,9 +1,9 @@
-use std::str::FromStr;
-
 use anyhow::anyhow;
 use regex::Regex;
-use roxmltree::{Children, Document};
+use roxmltree::{Children, Document, Node};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct File4 {
     pub id: String,
     pub file_name: String,
@@ -13,21 +13,27 @@ pub struct File4 {
     pub derivative: Vec<Derivative>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Reporter {
     pub name: String,
     pub cik: String,
     pub relation: Relations,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Issuer {
     pub name: String,
     pub cik: String,
     pub symbol: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Relations {
     pub relations: Vec<Relation>,
     pub title: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Relation {
     Director,
     Officer,
@@ -35,6 +41,7 @@ pub enum Relation {
     Other,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NonDerivative {
     pub title: String,
     pub date: Option<String>,
@@ -44,6 +51,7 @@ pub struct NonDerivative {
     pub ownership: Ownership,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Derivative {
     pub title: String,
     pub date: Option<String>,
@@ -55,6 +63,7 @@ pub struct Derivative {
     pub ownership: Ownership,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub enum TransactionCode {
     // General Transaction Codes
     P, // Open market or private purchase of non-derivative or derivative security
@@ -83,22 +92,26 @@ pub enum TransactionCode {
     U, // Disposition pursuant to a tender of shares in a change of control transaction
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionData {
-    pub amount: i32,
+    pub amount: f32,
     pub acqired: bool,
     pub price: f32,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Ownership {
     Direct,
     Indirect(String),
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub enum DerivativeNumber {
-    Acquired(i32),
-    Disposed(i32),
+    Acquired(f32),
+    Disposed(f32),
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Underlying {
     pub title: String,
     pub price: f32,
@@ -270,7 +283,8 @@ impl File4 {
                     .children()
                     .find(|n| n.has_tag_name("securityTitle"))
                     .ok_or(anyhow!("No non derivative title found"))?
-                    .first_child()
+                    .children()
+                    .find(|n| n.has_tag_name("value"))
                     .ok_or(anyhow!("No non derivative title value found"))?
                     .text()
                     .ok_or(anyhow!("No non derivative title value text found"))?
@@ -279,7 +293,7 @@ impl File4 {
                 let date = i
                     .children()
                     .find(|n| n.has_tag_name("transactionDate"))
-                    .map(|n| n.first_child())
+                    .map(|n| n.children().find(|n| n.has_tag_name("value")))
                     .unwrap_or_default()
                     .map(|n| n.text())
                     .unwrap_or_default()
@@ -298,8 +312,7 @@ impl File4 {
                 let tx_data = i
                     .children()
                     .find(|n| n.has_tag_name("transactionAmounts"))
-                    .map(|n| n.children())
-                    .map(|t| TransactionData::from_children(t))
+                    .map(|n| TransactionData::from_children(n))
                     .unwrap_or_default();
 
                 let owned = i
@@ -336,7 +349,8 @@ impl File4 {
                         ownership
                             .find(|n| n.has_tag_name("natureOfOwnership"))
                             .ok_or(anyhow!("No non derivative ownership nature found"))?
-                            .first_child()
+                            .children()
+                            .find(|n| n.has_tag_name("value"))
                             .ok_or(anyhow!("No non derivative ownership nature value found"))?
                             .text()
                             .ok_or(anyhow!(
@@ -441,29 +455,27 @@ impl File4 {
                 let mut ownership = i
                     .children()
                     .find(|n| n.has_tag_name("ownershipNature"))
-                    .ok_or(anyhow!("No non derivative ownership found"))?
+                    .ok_or(anyhow!("No derivative ownership found"))?
                     .children();
 
                 let ownership = match ownership
                     .find(|n| n.has_tag_name("directOrIndirectOwnership"))
-                    .ok_or(anyhow!("No non derivative ownership bool found"))?
+                    .ok_or(anyhow!("No derivative ownership bool found"))?
                     .children()
                     .find(|n| n.has_tag_name("value"))
-                    .ok_or(anyhow!("No non derivative ownership value found"))?
+                    .ok_or(anyhow!("No derivative ownership value found"))?
                     .text()
-                    .ok_or(anyhow!("No non derivative ownership value text found"))?
+                    .ok_or(anyhow!("No derivative ownership value text found"))?
                 {
                     "D" => Ownership::Direct,
                     _ => Ownership::Indirect(
                         ownership
                             .find(|n| n.has_tag_name("natureOfOwnership"))
-                            .ok_or(anyhow!("No non derivative ownership nature found"))?
+                            .ok_or(anyhow!("No derivative ownership nature found"))?
                             .first_child()
-                            .ok_or(anyhow!("No non derivative ownership nature value found"))?
+                            .ok_or(anyhow!("No derivative ownership nature value found"))?
                             .text()
-                            .ok_or(anyhow!(
-                                "No non derivative ownership nature value text found"
-                            ))?
+                            .ok_or(anyhow!("No derivative ownership nature value text found"))?
                             .to_owned(),
                     ),
                 };
@@ -525,10 +537,11 @@ impl TransactionCode {
 }
 
 impl TransactionData {
-    pub fn from_children(mut children: Children) -> Option<Self> {
-        let Some(amount) = children
-            .find(|n| n.has_tag_name("transactionAmounts"))
-            .map(|n| n.first_child())
+    pub fn from_children(parrent: Node) -> Option<Self> {
+        let Some(amount) = parrent
+            .children()
+            .find(|n| n.has_tag_name("transactionShares"))
+            .map(|n| n.children().find(|n| n.has_tag_name("value")))
             .unwrap_or_default()
             .map(|n| n.text())
             .unwrap_or_default()
@@ -538,20 +551,22 @@ impl TransactionData {
             return None;
         };
 
-        let Some(acqired) = children
+        let Some(acqired) = parrent
+            .children()
             .find(|n| n.has_tag_name("transactionAcquiredDisposedCode"))
-            .map(|n| n.first_child())
+            .map(|n| n.children().find(|n| n.has_tag_name("value")))
             .unwrap_or_default()
             .map(|n| n.text())
             .unwrap_or_default()
-            .map(|t| t == "D")
+            .map(|t| t == "A")
         else {
             return None;
         };
 
-        let Some(price) = children
+        let Some(price) = parrent
+            .children()
             .find(|n| n.has_tag_name("transactionPricePerShare"))
-            .map(|n| n.first_child())
+            .map(|n| n.children().find(|n| n.has_tag_name("value")))
             .unwrap_or_default()
             .map(|n| n.text())
             .unwrap_or_default()

@@ -7,9 +7,11 @@ edition = "2024"
 anyhow = "1.0.100"
 chrono = "0.4.42"
 regex = "1.12.2"
-reqwest = "0.12.24"
+reqwest = { version = "0.12.24", features = ["json"] }
 roxmltree = "0.21.1"
-sqlx = { version = "0.8.6", features = ["sqlite"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+sqlx = { version = "0.8.6", features = ["runtime-tokio", "sqlite"] }
 tokio = { version = "1.47.1", features = [
     "macros",
     "rt-multi-thread",
