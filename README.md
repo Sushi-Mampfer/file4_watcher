@@ -7,3 +7,7 @@ None for us, as you need to be 18 to trade on the stock market.
 # How to use
 - Either install it on a server `git clone https://github.com/Sushi-Mampfer/file4_watcher && cd file4_watcher` and `cargo run --release` and set the WEBHOOK env to you webhook.
 - or join `https://discord.gg/N9j8tehgcp`
+
+# Demo
+https://github.com/user-attachments/assets/f0e66f4a-28c3-4464-ae1b-b680a57826a8
+(Running for about a week)
